@@ -3,7 +3,13 @@ const canvasElement = document.getElementById('output');
 const canvasCtx = canvasElement.getContext('2d');
 
 async function setupCamera() {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+            facingMode: 'environment', // 使用後置攝像頭
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+        }
+    });
     videoElement.srcObject = stream;
 
     return new Promise((resolve) => {
@@ -57,5 +63,9 @@ function onResults(results) {
 
 setupCamera().then((video) => {
     video.play();
-    handTracking.send({ image: videoElement });
+    function detect() {
+        handTracking.send({ image: videoElement });
+        requestAnimationFrame(detect);
+    }
+    detect();
 });
