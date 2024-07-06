@@ -3,52 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Tattoo</title>
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://rawgit.com/jeromeetienne/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <title>AR Tattoo with MediaPipe Hand Tracking</title>
     <style>
-        body, html { margin: 0; padding: 0; overflow: hidden; }
-        #videoElement { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-        #canvas { display: none; }
+        body, html {
+            margin: 0;
+            overflow: hidden;
+        }
+        #camera, #output {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        #output {
+            z-index: 1;
+        }
     </style>
 </head>
 <body>
-    <a-scene embedded arjs>
-        <a-marker type="pattern" url="path/to/your/pattern-marker.patt">
-            <a-image src="path/to/your/tattoo-image.png" position="0 0 0" rotation="-90 0 0" scale="1 1 1"></a-image>
-        </a-marker>
-        <a-entity camera></a-entity>
-    </a-scene>
-    <video id="videoElement" autoplay playsinline></video>
-    <canvas id="canvas"></canvas>
-
-    <script>
-        const video = document.getElementById('videoElement');
-        const canvas = document.getElementById('canvas');
-        const context = canvas.getContext('2d');
-
-        if (navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ video: true })
-                .then(function (stream) {
-                    video.srcObject = stream;
-                })
-                .catch(function (error) {
-                    console.log("Something went wrong!");
-                });
-        }
-
-        video.addEventListener('loadedmetadata', () => {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-        });
-
-        function draw() {
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            // 在此處添加你的紋身圖像處理邏輯
-            requestAnimationFrame(draw);
-        }
-
-        video.addEventListener('play', draw);
-    </script>
+    <video id="camera" autoplay playsinline></video>
+    <canvas id="output"></canvas>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hand_tracking/hand_tracking.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
