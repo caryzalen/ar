@@ -1,117 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Web Application</title>
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-        }
-        canvas {
-            display: block;
-        }
-        #videoElement {
-            display: none;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web AR with MediaPipe and Three.js</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+  </style>
 </head>
 <body>
-    <video id="videoElement"></video>
-    <canvas id="outputCanvas"></canvas>
-
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
-    <script>
-        // 初始化视频元素和Canvas
-        const videoElement = document.getElementById('videoElement');
-        const canvasElement = document.getElementById('outputCanvas');
-        const canvasCtx = canvasElement.getContext('2d');
-
-        // 初始化MediaPipe Hands
-        const hands = new Hands({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-        });
-
-        hands.setOptions({
-            maxNumHands: 1,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5
-        });
-
-        hands.onResults(onResults);
-
-        // 初始化摄像头
-        const camera = new Camera(videoElement, {
-            onFrame: async () => {
-                await hands.send({ image: videoElement });
-            },
-            width: 1280,
-            height: 720
-        });
-        camera.start();
-
-        // 处理MediaPipe结果
-        function onResults(results) {
-            canvasCtx.save();
-            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-            canvasCtx.drawImage(
-                results.image, 0, 0, canvasElement.width, canvasElement.height);
-            if (results.multiHandLandmarks) {
-                for (const landmarks of results.multiHandLandmarks) {
-                    drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS,
-                                   { color: '#00FF00', lineWidth: 5 });
-                    drawLandmarks(canvasCtx, landmarks, { color: '#FF0000', lineWidth: 2 });
-
-                    // 获取手部位置
-                    const handX = (landmarks[0].x - 0.5) * 2 * window.innerWidth;
-                    const handY = -(landmarks[0].y - 0.5) * 2 * window.innerHeight;
-                    const handZ = (landmarks[0].z) * 500 - 250;
-
-                    // 更新3D模型位置
-                    if (model) {
-                        model.position.set(handX, handY, handZ);
-                    }
-                }
-            }
-            canvasCtx.restore();
-        }
-
-        // 初始化Three.js
-        let scene, camera3D, renderer, model;
-
-        function init3D() {
-            scene = new THREE.Scene();
-            camera3D = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            renderer = new THREE.WebGLRenderer({ alpha: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
-
-            const light = new THREE.AmbientLight(0xffffff);
-            scene.add(light);
-
-            const loader = new THREE.GLTFLoader();
-            loader.load('path_to_your_3d_model.glb', (gltf) => {
-                model = gltf.scene;
-                scene.add(model);
-                model.position.set(0, 0, -5);
-            });
-
-            camera3D.position.z = 5;
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            renderer.render(scene, camera3D);
-        }
-
-        init3D();
-        animate();
-    </script>
+  <video id="video" style="display:none;" autoplay></video>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
