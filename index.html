@@ -18,6 +18,13 @@
             embedded
             gesture-detector
         >
+            <a-assets>
+                <a-asset-item
+                    id="animated-asset"
+                    src="assets/asset.glb"
+                ></a-asset-item>
+            </a-assets>
+            
         <!-- 將模型放置在相機前方，位置可以根據需要調整 -->
         <a-entity position="0 0 -1" scale="1 1 1" gltf-model="path/to/yourModel.gltf"></a-entity> 
         <a-entity camera></a-entity>
