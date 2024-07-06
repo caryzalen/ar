@@ -1,16 +1,63 @@
 <!doctype html>
 <html>
 <head>
+    <title>Web AR Ring Try-On</title>
     <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
     <script src="https://raw.githack.com/donmccurdy/aframe-extras/master/dist/aframe-extras.loaders.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/studio-backend/master/src/modules/marker/tools/gesture-detector.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/studio-backend/master/src/modules/marker/tools/gesture-handler.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection"></script>
-</head>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script>
+        async function initAR() {
+            const videoElement = document.createElement('video');
+            videoElement.style.display = 'none';
+            document.body.appendChild(videoElement);
 
-<body style="margin: 0; overflow: hidden;">
+            const hands = new Hands({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+            });
+
+            hands.setOptions({
+                maxNumHands: 1,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+
+            hands.onResults(results => {
+                if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                    const landmarks = results.multiHandLandmarks[0];
+                    const middleFinger = landmarks[9]; // 中指根部位置
+                    const model = document.querySelector("#ring-model");
+                    if (model) {
+                        model.setAttribute('position', {
+                            x: middleFinger.x - 0.5,
+                            y: middleFinger.y - 0.5,
+                            z: -middleFinger.z // 調整深度值
+                        });
+                        model.setAttribute('rotation', `0 180 0`);
+                    }
+                } else {
+                    const model = document.querySelector("#ring-model");
+                    if (model) {
+                        model.setAttribute('position', '0 1 -2'); // 如果沒有檢測到手，模型置於中央旋轉
+                        model.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 5000');
+                    }
+                }
+            });
+
+            const camera = new Camera(videoElement, {
+                onFrame: async () => {
+                    await hands.send({image: videoElement});
+                },
+                width: 1280,
+                height: 720
+            });
+            camera.start();
+        }
+    </script>
+</head>
+<body onload="initAR()" style="margin: 0; overflow: hidden;">
     <a-scene
         vr-mode-ui="enabled: false;"
         loading-screen="enabled: false;"
@@ -18,63 +65,21 @@
         arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;"
         id="scene"
         embedded
-        gesture-detector
     >
         <a-assets>
             <a-asset-item
-                id="animated-asset"
+                id="ring-asset"
                 src="assets/asset.glb"
             ></a-asset-item>
         </a-assets>
-
         <a-entity
             id="ring-model"
             scale="0.5 0.5 0.5"
-            position="0 0 -1"
-            rotation="0 0 0"
-            animation="property: rotation; to: 0 360 0; loop: true; dur: 5000"
-            gltf-model="#animated-asset"
+            position="0 1 -2"
+            gltf-model="#ring-asset"
         ></a-entity>
-
         <a-light type="ambient" color="#fff"></a-light>
         <a-entity camera></a-entity>
     </a-scene>
-
-    <script>
-        const scene = document.querySelector('a-scene');
-        const ringModel = document.getElementById('ring-model');
-        let handDetector;
-
-        async function setupHandTracking() {
-            handDetector = await handPoseDetection.createDetector(handPoseDetection.SupportedModels.MediaPipeHands);
-            detectHands();
-        }
-
-        async function detectHands() {
-            const video = document.querySelector('video');
-            const hands = await handDetector.estimateHands(video);
-
-            if (hands.length > 0) {
-                const hand = hands[0];
-                const middleFinger = hand.keypoints.find(point => point.name === 'middle_finger_tip');
-
-                if (middleFinger) {
-                    const { x, y, z } = middleFinger;
-                    ringModel.setAttribute('position', {
-                        x: (x / window.innerWidth) * 2 - 1,
-                        y: -(y / window.innerHeight) * 2 + 1,
-                        z: -1
-                    });
-                    ringModel.removeAttribute('animation');
-                }
-            } else {
-                ringModel.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 5000');
-            }
-
-            requestAnimationFrame(detectHands);
-        }
-
-        setupHandTracking();
-    </script>
 </body>
 </html>
