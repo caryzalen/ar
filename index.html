@@ -45,7 +45,7 @@
     outputElement.appendChild(renderer.domElement);
 
     const textureLoader = new THREE.TextureLoader();
-    const texture = textureLoader.load('path/to/your-image.jpg'); // 替換為你的圖片URL
+    const texture = textureLoader.load('assets/IMG_8474.JPG'); // 替換為你的圖片URL
     const material = new THREE.MeshBasicMaterial({ map: texture });
     const geometry = new THREE.PlaneGeometry(1, 1);
     const plane = new THREE.Mesh(geometry, material);
