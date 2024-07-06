@@ -9,16 +9,10 @@
     </head>
 
     <body style="margin: 0; overflow: hidden;">
-        <a-scene
-            vr-mode-ui="enabled: false;"
-            loading-screen="enabled: false;"
-            renderer="logarithmicDepthBuffer: true;"
-            arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;"
-            id="scene"
-            embedded
-            gesture-detector
-        >
-            <a-entity position="0 0 -1" scale="1 1 1" gltf-model="assets/asset.glb" camera></a-entity>
-        </a-scene>
+    <a-scene embedded arjs='sourceType: webcam;'>
+        <!-- 將模型放置在相機前方，位置可以根據需要調整 -->
+        <a-entity position="0 0 -1" scale="1 1 1" gltf-model="path/to/yourModel.gltf"></a-entity>
+        <a-camera></a-camera>
+    </a-scene>
     </body>
 </html>
