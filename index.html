@@ -3,105 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Tattoo with MediaPipe Hand Tracking</title>
+    <title>AR Web Application</title>
     <style>
-        body, html {
+        body {
             margin: 0;
             overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100%;
         }
-        #camera, #output {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+        canvas {
+            display: block;
         }
-        #output {
-            z-index: 1;
+        #videoElement {
+            display: none;
         }
     </style>
 </head>
 <body>
-    <video id="camera" autoplay playsinline></video>
-    <canvas id="output"></canvas>
+    <video id="videoElement"></video>
+    <canvas id="outputCanvas"></canvas>
+
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
     <script>
-        const videoElement = document.getElementById('camera');
-        const canvasElement = document.getElementById('output');
+        // 初始化视频元素和Canvas
+        const videoElement = document.getElementById('videoElement');
+        const canvasElement = document.getElementById('outputCanvas');
         const canvasCtx = canvasElement.getContext('2d');
 
-        async function setupCamera() {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: 'environment', // 使用後置攝像頭
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                }
-            });
-            videoElement.srcObject = stream;
-
-            return new Promise((resolve) => {
-                videoElement.onloadedmetadata = () => {
-                    resolve(videoElement);
-                };
-            });
-        }
-
+        // 初始化MediaPipe Hands
         const hands = new Hands({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
         });
 
         hands.setOptions({
             maxNumHands: 1,
-            modelComplexity: 1,
             minDetectionConfidence: 0.5,
             minTrackingConfidence: 0.5
         });
 
         hands.onResults(onResults);
 
+        // 初始化摄像头
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({ image: videoElement });
+            },
+            width: 1280,
+            height: 720
+        });
+        camera.start();
+
+        // 处理MediaPipe结果
         function onResults(results) {
             canvasCtx.save();
             canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-
+            canvasCtx.drawImage(
+                results.image, 0, 0, canvasElement.width, canvasElement.height);
             if (results.multiHandLandmarks) {
                 for (const landmarks of results.multiHandLandmarks) {
-                    // 畫手部骨架
-                    drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 5 });
+                    drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS,
+                                   { color: '#00FF00', lineWidth: 5 });
                     drawLandmarks(canvasCtx, landmarks, { color: '#FF0000', lineWidth: 2 });
 
-                    // 計算紋身位置
-                    const wrist = landmarks[0];
-                    const thumbTip = landmarks[4];
-                    const indexFingerTip = landmarks[8];
+                    // 获取手部位置
+                    const handX = (landmarks[0].x - 0.5) * 2 * window.innerWidth;
+                    const handY = -(landmarks[0].y - 0.5) * 2 * window.innerHeight;
+                    const handZ = (landmarks[0].z) * 500 - 250;
 
-                    const tattooImage = new Image();
-                    tattooImage.src = 'tattoo.png'; // 替換為你的紋身圖像路徑
-                    tattooImage.onload = () => {
-                        const tattooWidth = 100;
-                        const tattooHeight = 100;
-                        const x = wrist.x * canvasElement.width - tattooWidth / 2;
-                        const y = wrist.y * canvasElement.height - tattooHeight / 2;
-                        canvasCtx.drawImage(tattooImage, x, y, tattooWidth, tattooHeight);
-                    };
+                    // 更新3D模型位置
+                    if (model) {
+                        model.position.set(handX, handY, handZ);
+                    }
                 }
             }
             canvasCtx.restore();
         }
 
-        setupCamera().then((video) => {
-            video.play();
-            function detect() {
-                hands.send({ image: videoElement });
-                requestAnimationFrame(detect);
-            }
-            detect();
-        });
+        // 初始化Three.js
+        let scene, camera3D, renderer, model;
+
+        function init3D() {
+            scene = new THREE.Scene();
+            camera3D = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            const light = new THREE.AmbientLight(0xffffff);
+            scene.add(light);
+
+            const loader = new THREE.GLTFLoader();
+            loader.load('path_to_your_3d_model.glb', (gltf) => {
+                model = gltf.scene;
+                scene.add(model);
+                model.position.set(0, 0, -5);
+            });
+
+            camera3D.position.z = 5;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera3D);
+        }
+
+        init3D();
+        animate();
     </script>
 </body>
 </html>
