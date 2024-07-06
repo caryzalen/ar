@@ -1,77 +1,54 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>AR Hand Image</title>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.133.1/build/three.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Tattoo</title>
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://rawgit.com/jeromeetienne/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <style>
+        body, html { margin: 0; padding: 0; overflow: hidden; }
+        #videoElement { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        #canvas { display: none; }
+    </style>
 </head>
 <body>
-  <video id="input_video" style="display:none;"></video>
-  <div id="output" style="position: relative; width: 100vw; height: 100vh;"></div>
-  <script>
-    const videoElement = document.getElementById('input_video');
-    const outputElement = document.getElementById('output');
-    
-    const hands = new Hands({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-    });
+    <a-scene embedded arjs>
+        <a-marker type="pattern" url="path/to/your/pattern-marker.patt">
+            <a-image src="path/to/your/tattoo-image.png" position="0 0 0" rotation="-90 0 0" scale="1 1 1"></a-image>
+        </a-marker>
+        <a-entity camera></a-entity>
+    </a-scene>
+    <video id="videoElement" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
 
-    hands.setOptions({
-      maxNumHands: 1,
-      modelComplexity: 1,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
-    });
+    <script>
+        const video = document.getElementById('videoElement');
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
 
-    hands.onResults(onResults);
+        if (navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(function (stream) {
+                    video.srcObject = stream;
+                })
+                .catch(function (error) {
+                    console.log("Something went wrong!");
+                });
+        }
 
-    const camera = new Camera(videoElement, {
-      onFrame: async () => {
-        await hands.send({image: videoElement});
-      },
-      width: 1280,
-      height: 720
-    });
+        video.addEventListener('loadedmetadata', () => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+        });
 
-    camera.start();
+        function draw() {
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            // 在此處添加你的紋身圖像處理邏輯
+            requestAnimationFrame(draw);
+        }
 
-    const scene = new THREE.Scene();
-    const camera3D = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    outputElement.appendChild(renderer.domElement);
-
-    const textureLoader = new THREE.TextureLoader();
-    const texture = textureLoader.load('assets/IMG_8474.JPG'); // 替換為你的圖片URL
-    const material = new THREE.MeshBasicMaterial({ map: texture });
-    const geometry = new THREE.PlaneGeometry(1, 1);
-    const plane = new THREE.Mesh(geometry, material);
-    scene.add(plane);
-
-    camera3D.position.z = 5;
-
-    function onResults(results) {
-      if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
-        plane.visible = false;
-        return;
-      }
-
-      plane.visible = true;
-      const handLandmarks = results.multiHandLandmarks[0];
-      const wrist = handLandmarks[0];
-      
-      plane.position.set((wrist.x - 0.5) * 2, -(wrist.y - 0.5) * 2, -wrist.z * 2);
-    }
-
-    function animate() {
-      requestAnimationFrame(animate);
-      renderer.render(scene, camera3D);
-    }
-
-    animate();
-  </script>
+        video.addEventListener('play', draw);
+    </script>
 </body>
 </html>
