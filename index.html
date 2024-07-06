@@ -9,11 +9,18 @@
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection"></script>
   <style>
     body, html { margin: 0; padding: 0; overflow: hidden; }
-    #ar-button { position: absolute; top: 10px; left: 10px; z-index: 100; }
+    #ar-button, #style-buttons { position: absolute; top: 10px; z-index: 100; display: flex; gap: 10px; }
+    #ar-button { left: 10px; }
+    #style-buttons { right: 10px; }
   </style>
 </head>
 <body>
   <button id="ar-button">Enter AR</button>
+  <div id="style-buttons">
+    <button onclick="changeRingStyle('gold')">Gold</button>
+    <button onclick="changeRingStyle('silver')">Silver</button>
+    <button onclick="changeRingStyle('diamond')">Diamond</button>
+  </div>
   <a-scene embedded arjs>
     <a-marker preset="hiro">
       <a-entity id="ring" geometry="primitive: ring; radiusInner: 0.5; radiusOuter: 1" material="color: gold;"></a-entity>
@@ -67,6 +74,24 @@
         };
         detect();
       });
+    }
+
+    function changeRingStyle(style) {
+      const ring = document.querySelector('#ring');
+      switch (style) {
+        case 'gold':
+          ring.setAttribute('geometry', 'primitive: ring; radiusInner: 0.5; radiusOuter: 1');
+          ring.setAttribute('material', 'color: gold');
+          break;
+        case 'silver':
+          ring.setAttribute('geometry', 'primitive: ring; radiusInner: 0.5; radiusOuter: 1');
+          ring.setAttribute('material', 'color: silver');
+          break;
+        case 'diamond':
+          ring.setAttribute('geometry', 'primitive: box; depth: 0.2; height: 0.2; width: 0.2');
+          ring.setAttribute('material', 'color: white');
+          break;
+      }
     }
 
     detectHand();
