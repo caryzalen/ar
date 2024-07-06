@@ -10,7 +10,7 @@ document.body.appendChild(renderer.domElement);
 // 加載3D模型（替換成你的3D模型路徑）
 const loader = new THREE.GLTFLoader();
 let model;
-loader.load('path_to_your_model.glb', function (gltf) {
+loader.load('assets/asset.glb', function (gltf) {
   model = gltf.scene;
   scene.add(model);
   model.position.set(0, 0, -5);  // 調整模型的位置
