@@ -7,28 +7,17 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection@0.0.2/dist/hand-pose-detection.min.js"></script>
   </head>
-  <body>
+  <body style="margin: 0; overflow: hidden;">
     <a-scene vr-mode-ui="enabled: false" embedded arjs>
       <a-assets>
-        <a-asset-item 
-          id="ringModel" 
-          src="assets/asset.glb"
-          >
-        </a-asset-item>
+        <a-asset-item id="ringModel" src="path/to/your/ring/model.glb"></a-asset-item>
       </a-assets>
 
-      <a-entity 
-        id="ring" 
-        gltf-model="#ringModel" 
-        scale="0.1 0.1 0.1" 
-        position="0 0 -1"
-        >
-      </a-entity>
+      <a-entity id="ring" gltf-model="#ringModel" scale="0.1 0.1 0.1" position="0 0 -5"></a-entity>
       <a-camera></a-camera>
     </a-scene>
 
     <script>
-      // 初始化手部偵測模型
       let model, video;
       const ringEntity = document.getElementById('ring');
 
@@ -68,7 +57,11 @@
           const middleFinger = hand.keypoints.find(point => point.name === 'middle_finger_tip');
 
           if (middleFinger) {
-            ringEntity.setAttribute('position', `${middleFinger.x / 100 - 3.2} ${3 - middleFinger.y / 100} -5`);
+            const x = (middleFinger.x / video.videoWidth) * 2 - 1;
+            const y = -(middleFinger.y / video.videoHeight) * 2 + 1;
+            const z = -3; // 調整Z軸位置
+
+            ringEntity.setAttribute('position', `${x * 5} ${y * 5} ${z}`);
           }
         } else {
           // 未偵測到手部，旋轉戒指模型
