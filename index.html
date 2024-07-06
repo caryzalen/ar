@@ -10,32 +10,38 @@
   <style>
     body, html { margin: 0; padding: 0; overflow: hidden; }
     #ar-button { position: absolute; top: 10px; left: 10px; z-index: 100; }
+    #videoInput {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+    }
   </style>
 </head>
 <body>
   <button id="ar-button">Enter AR</button>
   <a-scene embedded arjs>
     <a-marker preset="hiro">
-      <a-entity id="ring" geometry="primitive: ring; radiusInner: 0.5; radiusOuter: 1" material="color: gold;"></a-entity>
+      <a-entity id="ring" obj-model="obj: url(models/ring.obj); mtl: url(models/ring.mtl);" scale="0.05 0.05 0.05" position="0 0 0"></a-entity>
     </a-marker>
     <a-entity camera></a-entity>
   </a-scene>
+
+  <video id="videoInput" playsinline autoplay></video>
 
   <script>
     document.getElementById('ar-button').addEventListener('click', () => {
       document.querySelector('a-scene').enterVR();
     });
 
-    const video = document.createElement('video');
-    video.setAttribute('autoplay', '');
-    video.setAttribute('muted', '');
-    video.setAttribute('playsinline', '');
-    document.body.appendChild(video);
+    const video = document.getElementById('videoInput');
 
     async function setupCamera() {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       video.srcObject = stream;
-
       return new Promise(resolve => {
         video.onloadedmetadata = () => {
           resolve(video);
@@ -49,24 +55,33 @@
         { runtime: 'mediapipe', modelType: 'full' }
       );
 
-      setupCamera().then(video => {
-        video.play();
-        const detect = async () => {
-          const predictions = await model.estimateHands(video);
-          if (predictions.length > 0) {
-            const keypoints = predictions[0].keypoints;
-            // 取得中指位置，更新戒指位置
-            const ring = document.querySelector('#ring');
-            ring.object3D.position.set(
-              (keypoints[12].x - video.videoWidth / 2) / video.videoWidth,
-              -(keypoints[12].y - video.videoHeight / 2) / video.videoHeight,
-              -0.5  // 假設一個固定的深度值
-            );
-          }
-          requestAnimationFrame(detect);
-        };
-        detect();
-      });
+      await setupCamera();
+      video.play();
+
+      const detect = async () => {
+        const predictions = await model.estimateHands(video);
+        if (predictions.length > 0) {
+          const keypoints = predictions[0].keypoints;
+          // 取得中指指根和指尖的位置
+          const middleFingerKnuckle = keypoints[9];
+          const middleFingerTip = keypoints[12];
+
+          // 計算中指的中心位置
+          const centerX = (middleFingerKnuckle.x + middleFingerTip.x) / 2;
+          const centerY = (middleFingerKnuckle.y + middleFingerTip.y) / 2;
+          const centerZ = (middleFingerKnuckle.z + middleFingerTip.z) / 2;
+
+          // 更新戒指的位置
+          const ring = document.querySelector('#ring');
+          ring.object3D.position.set(
+            (centerX - video.videoWidth / 2) / video.videoWidth * 2,
+            -(centerY - video.videoHeight / 2) / video.videoHeight * 2,
+            -0.5  // 假設一個固定的深度值
+          );
+        }
+        requestAnimationFrame(detect);
+      };
+      detect();
     }
 
     detectHand();
