@@ -1,71 +1,71 @@
-const videoElement = document.getElementById('camera');
-const canvasElement = document.getElementById('output');
-const canvasCtx = canvasElement.getContext('2d');
+import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
 
-async function setupCamera() {
-    const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-            facingMode: 'environment', // 使用後置攝像頭
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-        }
-    });
-    videoElement.srcObject = stream;
+// 初始化Three.js場景
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
 
-    return new Promise((resolve) => {
-        videoElement.onloadedmetadata = () => {
-            resolve(videoElement);
-        };
-    });
-}
-
-const handTracking = new HandTracking.Hands({
-    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hand_tracking/${file}`,
+// 加載3D模型（替換成你的3D模型路徑）
+const loader = new THREE.GLTFLoader();
+let model;
+loader.load('path_to_your_model.glb', function (gltf) {
+  model = gltf.scene;
+  scene.add(model);
+  model.position.set(0, 0, -5);  // 調整模型的位置
 });
 
-handTracking.setOptions({
-    maxNumHands: 1,
-    modelComplexity: 1,
-    minDetectionConfidence: 0.5,
-    minTrackingConfidence: 0.5
+// 初始化MediaPipe Hands
+const hands = new Hands({
+  locateFile: (file) => {
+    return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+  }
 });
 
-handTracking.onResults(onResults);
+hands.setOptions({
+  maxNumHands: 1,
+  modelComplexity: 1,
+  minDetectionConfidence: 0.5,
+  minTrackingConfidence: 0.5
+});
+
+hands.onResults(onResults);
+
+const videoElement = document.getElementById('video');
+const cameraUtils = new Camera(videoElement, {
+  onFrame: async () => {
+    await hands.send({ image: videoElement });
+  },
+  width: 1280,
+  height: 720
+});
+cameraUtils.start();
 
 function onResults(results) {
-    canvasCtx.save();
-    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+  if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+    const landmarks = results.multiHandLandmarks[0];
 
-    if (results.multiHandLandmarks) {
-        for (const landmarks of results.multiHandLandmarks) {
-            // 畫手部骨架
-            drawConnectors(canvasCtx, landmarks, HandTracking.HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 5 });
-            drawLandmarks(canvasCtx, landmarks, { color: '#FF0000', lineWidth: 2 });
+    // 將手部位置映射到3D空間，並更新模型位置
+    const x = landmarks[9].x * 2 - 1;
+    const y = -landmarks[9].y * 2 + 1;
+    const z = landmarks[9].z;
 
-            // 計算紋身位置
-            const wrist = landmarks[0];
-            const thumbTip = landmarks[4];
-            const indexFingerTip = landmarks[8];
-
-            const tattooImage = new Image();
-            tattooImage.src = 'tattoo.png'; // 替換為你的紋身圖像路徑
-            tattooImage.onload = () => {
-                const tattooWidth = 100;
-                const tattooHeight = 100;
-                const x = wrist.x * canvasElement.width - tattooWidth / 2;
-                const y = wrist.y * canvasElement.height - tattooHeight / 2;
-                canvasCtx.drawImage(tattooImage, x, y, tattooWidth, tattooHeight);
-            };
-        }
+    if (model) {
+      model.position.set(x, y, z);
     }
-    canvasCtx.restore();
+  }
 }
 
-setupCamera().then((video) => {
-    video.play();
-    function detect() {
-        handTracking.send({ image: videoElement });
-        requestAnimationFrame(detect);
-    }
-    detect();
+// 渲染循環
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+animate();
+
+// 啟動相機
+navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
+  videoElement.srcObject = stream;
+  videoElement.play();
 });
