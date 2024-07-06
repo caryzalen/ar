@@ -1,77 +1,75 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>Web AR Ring</title>
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection@0.0.2/dist/hand-pose-detection.min.js"></script>
-  </head>
-  <body style="margin: 0; overflow: hidden;">
-    <a-scene vr-mode-ui="enabled: false" embedded arjs>
-      <a-assets>
-        <a-asset-item id="ringModel" src="assets/asset.glb"></a-asset-item>
-      </a-assets>
+<head>
+  <meta charset="utf-8">
+  <title>AR Ring Try-on</title>
+  <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection"></script>
+  <style>
+    body, html { margin: 0; padding: 0; overflow: hidden; }
+    #ar-button { position: absolute; top: 10px; left: 10px; z-index: 100; }
+  </style>
+</head>
+<body>
+  <button id="ar-button">Enter AR</button>
+  <a-scene embedded arjs>
+    <a-marker preset="hiro">
+      <a-entity id="ring" geometry="primitive: ring; radiusInner: 0.5; radiusOuter: 1" material="color: gold;"></a-entity>
+    </a-marker>
+    <a-entity camera></a-entity>
+  </a-scene>
 
-      <a-entity id="ring" gltf-model="#ringModel" scale="0.1 0.1 0.1" position="0 0 -5"></a-entity>
-      <a-camera></a-camera>
-    </a-scene>
+  <script>
+    document.getElementById('ar-button').addEventListener('click', () => {
+      document.querySelector('a-scene').enterVR();
+    });
 
-    <script>
-      let model, video;
-      const ringEntity = document.getElementById('ring');
+    const video = document.createElement('video');
+    video.setAttribute('autoplay', '');
+    video.setAttribute('muted', '');
+    video.setAttribute('playsinline', '');
+    document.body.appendChild(video);
 
-      async function init() {
-        model = await handPoseDetection.load(handPoseDetection.SupportedModels.MediaPipeHands);
-        video = await setupCamera();
+    async function setupCamera() {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+
+      return new Promise(resolve => {
+        video.onloadedmetadata = () => {
+          resolve(video);
+        };
+      });
+    }
+
+    async function detectHand() {
+      const model = await handPoseDetection.load(
+        handPoseDetection.SupportedModels.MediaPipeHands,
+        { runtime: 'mediapipe', modelType: 'full' }
+      );
+
+      setupCamera().then(video => {
         video.play();
-        detectHands();
-      }
-
-      async function setupCamera() {
-        const video = document.createElement('video');
-        video.setAttribute('autoplay', '');
-        video.setAttribute('playsinline', '');
-        video.setAttribute('muted', '');
-        video.setAttribute('width', '640');
-        video.setAttribute('height', '480');
-
-        document.body.appendChild(video);
-
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        video.srcObject = stream;
-
-        return new Promise((resolve) => {
-          video.onloadedmetadata = () => {
-            resolve(video);
-          };
-        });
-      }
-
-      async function detectHands() {
-        const predictions = await model.estimateHands(video);
-
-        if (predictions.length > 0) {
-          // 偵測到手部
-          const hand = predictions[0];
-          const middleFinger = hand.keypoints.find(point => point.name === 'middle_finger_tip');
-
-          if (middleFinger) {
-            const x = (middleFinger.x / video.videoWidth) * 2 - 1;
-            const y = -(middleFinger.y / video.videoHeight) * 2 + 1;
-            const z = -3; // 調整Z軸位置
-
-            ringEntity.setAttribute('position', `${x * 5} ${y * 5} ${z}`);
+        const detect = async () => {
+          const predictions = await model.estimateHands(video);
+          if (predictions.length > 0) {
+            const keypoints = predictions[0].keypoints;
+            // 取得手指位置，更新戒指位置
+            const ring = document.querySelector('#ring');
+            ring.object3D.position.set(
+              (keypoints[8].x - video.videoWidth / 2) / video.videoWidth,
+              -(keypoints[8].y - video.videoHeight / 2) / video.videoHeight,
+              -0.5  // 假設一個固定的深度值
+            );
           }
-        } else {
-          // 未偵測到手部，旋轉戒指模型
-          ringEntity.object3D.rotation.y += 0.01;
-        }
+          requestAnimationFrame(detect);
+        };
+        detect();
+      });
+    }
 
-        requestAnimationFrame(detectHands);
-      }
-
-      init();
-    </script>
-  </body>
+    detectHand();
+  </script>
+</body>
 </html>
